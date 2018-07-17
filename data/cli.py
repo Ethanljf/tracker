@@ -10,6 +10,7 @@ from data import update as data_update
 from data import processing
 from data import logger
 from data import models
+from data import sync
 from data.preprocess import pull_data, insert_data
 
 
@@ -19,7 +20,7 @@ LOGGER = logger.get_logger(__name__)
 class DateType(click.ParamType):
     name = "date"
 
-    def convert(self, value, param, ctx) -> typing.Optional[str]:
+    def convert(self, value, param, ctx) -> str:
         try:
             datetime.datetime.strptime(value, "%Y-%m-%d")
             return value
@@ -217,3 +218,16 @@ def insert(
 
     with models.Connection(ctx.obj.get("connection_string")) as connection:
         insert_data(owners, domains, ciphers, upsert, connection, ctx.obj.get("batch_size"))
+
+@main.command(help="Upload scan results to s3 bucket")
+@click.option("--bucket", required=True, help="s3 bucket to upload to")
+@click.option('--date', type=DATE, callback=get_date)
+def upload(bucket: str, date: str) -> None:
+    # Sanity check to make sure we have results to upload
+    if not os.path.exists(os.path.join(env.SCAN_RESULTS, "meta.json")):
+        LOGGER.critical("No scan metadata downloaded, aborting.")
+        return
+
+    LOGGER.info('[%s] Syncing scan data and database to S3.', date)
+    sync.upload_s3(bucket, env.SCAN_RESULTS, date)
+    LOGGER.info("[%s] Scan data and database now in S3.", date)
