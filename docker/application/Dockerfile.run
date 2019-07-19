@@ -26,4 +26,4 @@ RUN pip install -r $DOMAIN_HOME/requirements.txt
 RUN pip install -r $DOMAIN_HOME/requirements-scanners.txt
 
 # Set entrypoint
-ENTRYPOINT $TRACKER_HOME/deploy/scan.sh
+ENTRYPOINT $TRACKER_HOME/docker/application/scan.sh

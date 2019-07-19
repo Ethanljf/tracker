@@ -7,6 +7,9 @@
 
 import subprocess
 import typing
+import csv
+
+from threading import Thread
 
 # Import all the constants from data/env.py.
 from data import env
@@ -48,21 +51,31 @@ def update(scanners: typing.List[str], domains: str, output: str, options):
 
     # 1c. Scan domains for all types of things.
     LOGGER.info("Scanning domains.")
-    scan_domains(options, scan_command, scanners, domains, output)
+    dispatch_threads(domains, options, scan_command, scanners, output)
     LOGGER.info("Scan of domains complete.")
 
+def dispatch_threads(domains, options, scan_command, scanners, output):
+    with open(domains) as csv_input:
+        first_row = True
+        csv_reader = csv.reader(csv_input, delimiter=',')
+        for row in csv_reader:
+            if first_row:
+                first_row = False
+            else:
+                Thread(target=scan_domains, args=[options, scan_command, scanners, row[0], output]).start()
+                scan_domains(options, scan_command, scanners, domains, output)
 
 # Run pshtt on each gathered set of domains.
 def scan_domains(
         options: typing.Dict[str, typing.Union[str, bool]],
         command: str,
         scanners: typing.List[str],
-        domains: str,
+        domain: str,
         output: str) -> None:
 
     full_command = [
         command,
-        domains,
+        domain,
         "--scan=%s" % ','.join(scanners),
         "--output=%s" % output,
         # "--debug", # always capture full output
